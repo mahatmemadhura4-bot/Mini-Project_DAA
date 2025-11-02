@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | Smart Waste Route Optimizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #007bff, #00bfa6);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 40px 35px;
+            border-radius: 15px;
+            width: 350px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            animation: slideIn 0.6s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        h1 {
+            color: #007bff;
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #007bff;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #005fcc;
+        }
+
+        p {
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        a {
+            color: #00bfa6;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .back-link {
+            margin-top: 20px;
+            display: inline-block;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .message {
+            margin-top: 15px;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sign In</h1>
+        <input type="text" id="username" placeholder="Enter Username" />
+        <input type="password" id="password" placeholder="Enter Password" />
+        <button id="signin-btn">Sign In</button>
+
+        <p>Don’t have an account? <a href="#" id="signup-link">Sign up</a></p>
+
+        <div class="message" id="message"></div>
+
+        <a href="index.html" class="back-link">⬅ Back to Home</a>
+    </div>
+
+    <script>
+        const signinBtn = document.getElementById('signin-btn');
+        const messageBox = document.getElementById('message');
+        const signupLink = document.getElementById('signup-link');
+
+        // Handle Sign In click
+        signinBtn.addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!username || !password) {
+                messageBox.style.color = 'red';
+                messageBox.textContent = '⚠️ Please fill all fields.';
+                return;
+            }
+
+            // Simulate backend validation
+            messageBox.style.color = '#007bff';
+            messageBox.textContent = '🔄 Signing in...';
+
+            setTimeout(() => {
+                // Here you can later add a real backend fetch() call
+                messageBox.style.color = 'green';
+                messageBox.textContent = `✅ Welcome, ${username}! Redirecting...`;
+
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+            }, 1000);
+        });
+
+        // Handle Sign-Up link click
+        signupLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            messageBox.style.color = '#00bfa6';
+            messageBox.textContent = '📝 Sign-up feature coming soon!';
+        });
+    </script>
+</body>
+</html>

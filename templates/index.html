@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Waste Route Optimizer</title>
+
+  <!-- ✅ Leaflet CSS & JS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Poppins", sans-serif; }
+    body { background: #f5f7fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+    header { background: linear-gradient(135deg, #007bff, #00bfa6); color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.6rem; }
+    header button { background: white; color: #007bff; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.3s; }
+    header button:hover { background: #e6f0ff; }
+    main { display: flex; flex-direction: row; flex: 1; padding: 20px; gap: 20px; }
+    #input-section { width: 30%; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); }
+    #input-section h2 { color: #007bff; margin-bottom: 15px; }
+    select, input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
+    button { background: #00bfa6; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+    button:hover { background: #00a98f; }
+    #locations-list { margin-top: 15px; max-height: 200px; overflow-y: auto; list-style-type: none; }
+    #locations-list li { margin-bottom: 5px; }
+    #result-box { margin-top: 15px; font-size: 0.95rem; color: #333; background: #eef9f6; padding: 10px; border-radius: 8px; display: none; line-height: 1.5; }
+    #map { width: 70%; height: 70vh; border-radius: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Smart Waste Route Optimizer</h1>
+    <button id="reset-map">Reset Map</button>
+  </header>
+
+  <main>
+    <div id="input-section">
+      <h2>Select City & Enter Areas</h2>
+
+      <select id="city-select">
+        <option value="">-- Select a City --</option>
+        <optgroup label="Tier 1 Cities">
+          <option>Delhi</option>
+          <option>Mumbai</option>
+          <option>Bengaluru</option>
+          <option>Chennai</option>
+          <option>Kolkata</option>
+          <option>Hyderabad</option>
+          <option>Pune</option>
+          <option>Ahmedabad</option>
+        </optgroup>
+        <optgroup label="Tier 2 Cities">
+          <option>Nagpur</option>
+          <option>Lucknow</option>
+          <option>Jaipur</option>
+          <option>Coimbatore</option>
+          <option>Bhopal</option>
+          <option>Indore</option>
+          <option>Surat</option>
+          <option>Vadodara</option>
+          <option>Visakhapatnam</option>
+        </optgroup>
+        <optgroup label="Tier 3 Cities">
+          <option>Mysuru</option>
+          <option>Nashik</option>
+          <option>Aurangabad</option>
+          <option>Madurai</option>
+          <option>Vijayawada</option>
+          <option>Rajkot</option>
+          <option>Jodhpur</option>
+          <option>Tiruchirappalli</option>
+          <option>Guwahati</option>
+        </optgroup>
+      </select>
+
+      <input type="text" id="location-input" placeholder="Enter area name (e.g., MG Road)" />
+      <button id="add-location">Add Location</button>
+
+      <ul id="locations-list"></ul>
+      <button id="optimize-route">Optimize Route</button>
+
+      <div id="result-box"></div>
+    </div>
+
+    <div id="map"></div>
+  </main>
+
+  <script>
+    // 🗺️ Initialize Map
+    const map = L.map("map").setView([20.5937, 78.9629], 5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    let markers = [];
+    let coordinates = {};
+    let locations = [];
+    let routeLine = null;
+    const list = document.getElementById("locations-list");
+    const resultBox = document.getElementById("result-box");
+
+    // 🎯 Focus map on selected city
+    document.getElementById("city-select").addEventListener("change", async () => {
+      const city = document.getElementById("city-select").value;
+      if (!city) return;
+      const res = await fetch("/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: city }),
+      });
+      const data = await res.json();
+      if (data.latitude && data.longitude) {
+        map.setView([data.latitude, data.longitude], 11);
+      }
+    });
+
+    // ➕ Add location
+    document.getElementById("add-location").addEventListener("click", async () => {
+      const city = document.getElementById("city-select").value;
+      const area = document.getElementById("location-input").value.trim();
+      if (!city || !area) return alert("Please select a city and enter an area.");
+
+      const fullPlace = `${area}, ${city}`;
+      const res = await fetch("/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: fullPlace }),
+      });
+      const data = await res.json();
+
+      if (data.latitude && data.longitude) {
+        const name = data.formatted_address || fullPlace;
+        locations.push(name);
+        coordinates[name] = [data.latitude, data.longitude];
+
+        const li = document.createElement("li");
+        li.textContent = `${name} ✅ (${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)})`;
+        list.appendChild(li);
+
+        const marker = L.marker([data.latitude, data.longitude]).addTo(map);
+        markers.push(marker);
+      } else {
+        alert("Couldn't find location.");
+      }
+
+      document.getElementById("location-input").value = "";
+    });
+
+    // ♻️ Optimize route
+    document.getElementById("optimize-route").addEventListener("click", async () => {
+      if (locations.length < 2) {
+        alert("Add at least 2 locations first!");
+        return;
+      }
+
+      resultBox.style.display = "block";
+      resultBox.innerHTML = "⏳ Optimizing route... please wait.";
+
+      try {
+        const res = await fetch("/optimize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ locations, coordinates }),
+        });
+
+        const data = await res.json();
+        console.log("Optimize Response:", data);
+
+        if (data.error) {
+          resultBox.innerHTML = `❌ Error: ${data.error}`;
+          return;
+        }
+
+        // ✅ Show optimized path
+        const timeUnit = "minutes";
+        resultBox.innerHTML = `
+          <strong>Optimized Route:</strong><br>
+          ${data.optimized_path.join(" ➜ ")}<br><br>
+          <strong>Total Distance:</strong> ${data.total_distance.toFixed(2)} km<br>
+          
+        `;
+
+        // 🧭 Draw route on map
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.polyline(data.route_coordinates, {
+          color: "#007bff",
+          weight: 5,
+          opacity: 0.8,
+        }).addTo(map);
+        map.fitBounds(routeLine.getBounds());
+      } catch (err) {
+        console.error("Fetch error:", err);
+        resultBox.innerHTML = `❌ Failed to fetch optimized route. Check console.`;
+      }
+    });
+
+    // 🔁 Reset map and list
+    document.getElementById("reset-map").addEventListener("click", () => {
+      locations = [];
+      coordinates = {};
+      markers.forEach((m) => map.removeLayer(m));
+      markers = [];
+      if (routeLine) map.removeLayer(routeLine);
+      routeLine = null;
+      list.innerHTML = "";
+      resultBox.style.display = "none";
+      map.setView([20.5937, 78.9629], 5);
+    });
+  </script>
+</body>
+</html>
